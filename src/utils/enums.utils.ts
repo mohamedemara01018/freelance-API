@@ -103,3 +103,9 @@ export enum AttachmentType {
     ARCHIVE = "archive",
     OTHER = "other",
 }
+
+
+export enum PortfolioProjectStatus {
+    DRAFT = "draft",
+    PUBLISHED = "published",
+}

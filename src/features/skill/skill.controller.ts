@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
 import { statusText } from "../../utils/enums.utils.js";
-import Skill from "./skill.model.js";
+import { Skill } from "./skill.model.js";
 
 // Helper function to convert name to slug if client doesn't send one
 const generateSlug = (name: string): string => {

@@ -23,6 +23,7 @@ import jobRoutes from './features/job/job.route'
 import proposalRoutes from './features/proposal/proposal.route'
 import saveJobRoutes from './features/save-job/savedJob.route'
 import attachmentRoutes from './features/attachment/attachment.route'
+import portfolioItemRoutes from './features/portfolio-item/portfolioItem.route'
 
 const app: Application = express();
 
@@ -98,7 +99,7 @@ app.use("/api/job", jobRoutes);
 app.use("/api/proposal", proposalRoutes);
 app.use("/api/save-job", saveJobRoutes);
 app.use("/api/attachment", attachmentRoutes);
-
+app.use('/api/portfolio-item', portfolioItemRoutes)
 /* ===========================
    404 Handler
 =========================== */
