@@ -282,7 +282,7 @@ const login = asyncWrapper(async (req: Request, res: Response, next: NextFunctio
         return next(
             appError({
                 statusCode: 400,
-                message: "Write your email",
+                message: "email doesn't exist or user doesn't exist",
                 statusText: statusText.FAIL,
             })
         );
@@ -308,7 +308,23 @@ const login = asyncWrapper(async (req: Request, res: Response, next: NextFunctio
         );
     }
 
+    // generate token
+    const token = jwt.sign({
+        email: userExist.email,
+        role: userExist.role,
+        isEmailVerified: userExist.isEmailVerified,
+        isIdentityVerified: userExist.isIdentityVerified
+    }, String(process.env.JWT_TOKEN_SECRET_KEY));
+
     if (!userExist?.isEmailVerified) {
+        const { token: t } = req.cookies;
+        if (!t) {
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: false, // true in production (https)
+                maxAge: 1000 * 60 * 60, // 1 hour
+            });
+        }
         return next(
             appError({
                 statusCode: 400,
@@ -339,13 +355,7 @@ const login = asyncWrapper(async (req: Request, res: Response, next: NextFunctio
         );
     }
 
-    // generate token
-    const token = jwt.sign({
-        email: userExist.email,
-        role: userExist.role,
-        isEmailVerified: userExist.isEmailVerified,
-        isIdentityVerified: userExist.isIdentityVerified
-    }, String(process.env.JWT_TOKEN_SECRET_KEY));
+
 
     res.cookie("token", token, {
         httpOnly: true,
