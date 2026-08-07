@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
-import { statusText } from "../../utils/enums.utils.js";
-import Attachment, { AttachmentEntityType, AttachmentType } from "./attachment.model.js";
+import { AttachmentEntityType, statusText } from "../../utils/enums.utils.js";
+import Attachment from "./attachment.model.js";
 
 // ==========================================
 // 1. GET ALL ATTACHMENTS (Filter by entity, user, or fileType)

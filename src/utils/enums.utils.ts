@@ -4,6 +4,11 @@ export enum UserRole {
     ADMIN = "admin",
 }
 
+export enum Sign {
+    REGISTER = "register",
+    LOGIN = "login",
+}
+
 export enum UserStatus {
     ACTIVE = "active",
     INACTIVE = "inactive",
@@ -108,4 +113,19 @@ export enum AttachmentType {
 export enum PortfolioProjectStatus {
     DRAFT = "draft",
     PUBLISHED = "published",
+}
+
+
+export enum VerificationStatus {
+    PENDING = "pending",
+    IN_REVIEW = "in_review",
+    APPROVED = "approved",
+    REJECTED = "rejected",
+    CANCELLED = "cancelled",
+}
+
+export enum DocumentType {
+    NATIONAL_ID = "national_id",
+    PASSPORT = "passport",
+    DRIVING_LICENSE = "driving_license",
 }

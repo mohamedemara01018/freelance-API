@@ -1,22 +1,7 @@
 import { Schema, model, Types } from "mongoose";
+import { AttachmentEntityType, AttachmentType } from "../../utils/enums.utils";
 
-export enum AttachmentEntityType {
-    JOB = "job",
-    PROPOSAL = "proposal",
-    MESSAGE = "message",
-    MILESTONE = "milestone",
-    PORTFOLIO = "portfolio",
-    VERIFICATION = "verification",
-}
 
-export enum AttachmentType {
-    IMAGE = "image",
-    VIDEO = "video",
-    AUDIO = "audio",
-    DOCUMENT = "document",
-    ARCHIVE = "archive",
-    OTHER = "other",
-}
 
 const attachmentSchema = new Schema(
     {

@@ -6,7 +6,7 @@ import { appError } from "../../utils/appError.utils.js";
 import generator from "generate-password";
 import dotenv from 'dotenv';
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
-import { statusText } from "../../utils/enums.utils.js";
+import { Sign, statusText } from "../../utils/enums.utils.js";
 import { sendCodeToMail } from "../../utils/sendCodeToMail.js";
 import { UserRole } from '../../utils/enums.utils.js'
 import { sendResetTokenToMail } from "../../utils/sendResetTokenToMail.js";
@@ -334,15 +334,15 @@ const login = asyncWrapper(async (req: Request, res: Response, next: NextFunctio
         );
     }
 
-    // if (!userExist?.isIdentityVerified) {
-    //     return next(
-    //         appError({
-    //             statusCode: 400,
-    //             message: "account doesn't Identity, please Identity your account",
-    //             statusText: statusText.FAIL,
-    //         })
-    //     );
-    // }
+    if (!userExist?.isIdentityVerified) {
+        return next(
+            appError({
+                statusCode: 400,
+                message: "account doesn't Identity, please Identity your account",
+                statusText: statusText.FAIL,
+            })
+        );
+    }
 
     const isPasswordMatch = await bcrypt.compare(String(password), String(userExist.password))
     if (!isPasswordMatch) {
@@ -485,7 +485,6 @@ const resetPassword = asyncWrapper(async (req: Request, res: Response, next: Nex
     }
 
 
-
     const decode = jwt.verify(token, String(process.env.JWT_RESET_TOKEN_SECRET_KEY)) as { email: string, _id: string };
 
     const userExist = await User.findOne({ email: decode?.email });
@@ -547,12 +546,14 @@ const resetPassword = asyncWrapper(async (req: Request, res: Response, next: Nex
 
 const registerWithGoogle = asyncWrapper((req: Request, res: Response, next: NextFunction) => {
     // 1. Grab the role from the frontend query string (default to 'user')
-    const chosenRole = (req.query.role as string) || 'client';
-
+    const chosenRole = (req.query.role as string) || UserRole.FREELANCER;
+    const typeOfSign = (req.query.sign as string) || Sign.REGISTER
     // 2. Embed both a secure random ID and the role into a stringified JSON state object
+
     const statePayload = {
         id: crypto.randomUUID(),
-        role: chosenRole
+        role: chosenRole,
+        sign: typeOfSign
     };
     const stateString = JSON.stringify(statePayload);
 
@@ -588,15 +589,18 @@ const talkWithGoogle = asyncWrapper(async (req: Request, res: Response, next: Ne
         );
     }
 
-    let chosenRole = 'client'; // fallback default
+    let chosenRole = UserRole.FREELANCER; // fallback default
+    let typeOfSign = Sign.REGISTER
     if (typeof state === "string") {
         try {
             const parsedState = JSON.parse(state);
-            chosenRole = parsedState.role || 'user';
+            chosenRole = parsedState.role;
+            typeOfSign = parsedState.sign
         } catch (e) {
             console.error("Failed parsing OAuth state payload", e);
         }
     }
+
     // Optional but recommended: compare `state` against the `oauth_state` cookie you set above
     // if (state !== req.cookies.oauth_state) return next(new AppError("Invalid state", 400));
 
@@ -655,6 +659,17 @@ const talkWithGoogle = asyncWrapper(async (req: Request, res: Response, next: Ne
     // }
     // 3. Find or create the user in your DB
     let user = await User.findOne({ email: profile.email });
+
+    if (!user && typeOfSign == Sign.LOGIN) {
+        res.redirect(`${process.env.CLIENT_URL}/role`)
+        return
+    }
+
+    if (user && typeOfSign == Sign.REGISTER) {
+        res.redirect(`${process.env.CLIENT_URL}/login`)
+        return
+    }
+
     if (!user) {
         const password = generator.generate({
             length: 16,
