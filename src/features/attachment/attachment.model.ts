@@ -25,12 +25,6 @@ const attachmentSchema = new Schema(
             index: true,
         },
 
-        fileType: {
-            type: String,
-            enum: Object.values(AttachmentType),
-            required: true,
-        },
-
         originalName: {
             type: String,
             required: true,
@@ -59,21 +53,12 @@ const attachmentSchema = new Schema(
             required: true,
         },
 
-        extension: {
-            type: String,
-            required: true,
-        },
-
         size: {
             type: Number,
             required: true,
             min: 0,
         },
 
-        isPublic: {
-            type: Boolean,
-            default: false,
-        },
     },
     {
         timestamps: true,
@@ -104,4 +89,4 @@ attachmentSchema.index({
     fileType: 1,
 });
 
-export default model("Attachment", attachmentSchema);
+export const Attachment = model("Attachment", attachmentSchema);

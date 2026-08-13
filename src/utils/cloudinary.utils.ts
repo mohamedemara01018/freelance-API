@@ -1,9 +1,27 @@
 import { Readable } from "stream"
 import cloudinary from "../config/cloudinary.config"
 export interface ICloudinaryProbs {
-    public_id: string
-    secure_url: string
-    result: string
+    asset_id: string;
+    public_id: string;
+    version: number;
+    version_id: string;
+    signature: string;
+    width: number;
+    height: number;
+    format: string;
+    resource_type: "image" | "video" | "raw" | "auto";
+    created_at: string;
+    tags: string[];
+    bytes: number;
+    type: "upload" | string;
+    etag: string;
+    placeholder: boolean;
+    url: string;
+    secure_url: string;
+    asset_folder: string;
+    display_name: string;
+    original_filename: string;
+    api_key: string;
 }
 export const uploadImageToCloudinary = async (buffer: Buffer, folder: string, fileName: string) => {
     return new Promise((resolve, reject) => {

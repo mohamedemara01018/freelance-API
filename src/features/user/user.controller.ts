@@ -262,7 +262,7 @@ const me = asyncWrapper(async (req: Request, res: Response, next: NextFunction) 
     console.log(payload)
 
     const email = payload?.email
-    const currentUser = await User.findOne({ email: String(email) });
+    const currentUser = await User.findOne({ email: String(email) }).select('-verifiedEmailCode -emailCodeExpiresAt -verifiedPhoneCode -phoneCodeExpiresAt -resetToken -resetTokenExpiresAt -refreshTokenVersion -deletedAt -password');
 
     res.status(200).json({
         message: 'user founded',

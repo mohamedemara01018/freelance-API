@@ -19,7 +19,7 @@ dotenv.config();
 
 const registerNewUser = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
 
-    let { firstName, lastName, email, password, role } = req.body;
+    let { firstName, lastName, email, password, role, adminRegister = false } = req.body;
 
     // check existing user
     const userExist = await User.findOne({ email });
@@ -69,6 +69,37 @@ const registerNewUser = asyncWrapper(async (req: Request, res: Response, next: N
             appError({
                 statusCode: 400,
                 message: "Write your password",
+                statusText: statusText.FAIL,
+            })
+        );
+    }
+
+    if (!role) {
+        return next(
+            appError({
+                statusCode: 400,
+                message: "please select your role",
+                statusText: statusText.FAIL,
+            })
+        );
+    }
+    
+    if (!Object.values(UserRole).includes(role)) {
+        console.log('kdfj')
+        return next(
+            appError({
+                statusCode: 400,
+                message: "your role does not vaild",
+                statusText: statusText.FAIL,
+            })
+        );
+    }
+
+    if (!adminRegister && role == UserRole.ADMIN) {
+        return next(
+            appError({
+                statusCode: 400,
+                message: "your role must be not  admin",
                 statusText: statusText.FAIL,
             })
         );
@@ -316,33 +347,40 @@ const login = asyncWrapper(async (req: Request, res: Response, next: NextFunctio
         isIdentityVerified: userExist.isIdentityVerified
     }, String(process.env.JWT_TOKEN_SECRET_KEY));
 
-    if (!userExist?.isEmailVerified) {
-        const { token: t } = req.cookies;
-        if (!t) {
-            res.cookie("token", token, {
-                httpOnly: true,
-                secure: false, // true in production (https)
-                maxAge: 1000 * 60 * 60, // 1 hour
-            });
-        }
-        return next(
-            appError({
-                statusCode: 400,
-                message: "account doesn't verify, please verify your account",
-                statusText: statusText.FAIL,
-            })
-        );
-    }
+    // const { token: t } = req.cookies;
+    // if (!userExist?.isEmailVerified) {
+    //     if (!t) {
+    //         res.cookie("token", token, {
+    //             httpOnly: true,
+    //             secure: false, // true in production (https)
+    //             maxAge: 1000 * 60 * 60, // 1 hour
+    //         });
+    //     }
+    //     return next(
+    //         appError({
+    //             statusCode: 400,
+    //             message: "account doesn't verify, please verify your account",
+    //             statusText: statusText.FAIL,
+    //         })
+    //     );
+    // }
 
-    if (!userExist?.isIdentityVerified) {
-        return next(
-            appError({
-                statusCode: 400,
-                message: "account doesn't Identity, please Identity your account",
-                statusText: statusText.FAIL,
-            })
-        );
-    }
+    // if (!userExist?.isIdentityVerified) {
+    //     if (!t) {
+    //         res.cookie("token", token, {
+    //             httpOnly: true,
+    //             secure: false, // true in production (https)
+    //             maxAge: 1000 * 60 * 60, // 1 hour
+    //         });
+    //     }
+    //     return next(
+    //         appError({
+    //             statusCode: 400,
+    //             message: "account doesn't Identity, please Identity your account",
+    //             statusText: statusText.FAIL,
+    //         })
+    //     );
+    // }
 
     const isPasswordMatch = await bcrypt.compare(String(password), String(userExist.password))
     if (!isPasswordMatch) {
@@ -549,6 +587,9 @@ const registerWithGoogle = asyncWrapper((req: Request, res: Response, next: Next
     const chosenRole = (req.query.role as string) || UserRole.FREELANCER;
     const typeOfSign = (req.query.sign as string) || Sign.REGISTER
     // 2. Embed both a secure random ID and the role into a stringified JSON state object
+    if (chosenRole == UserRole.ADMIN) {
+        return res.redirect(`${process.env.CLIENT_URL}/role`);
+    }
 
     const statePayload = {
         id: crypto.randomUUID(),
