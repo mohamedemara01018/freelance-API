@@ -7,6 +7,8 @@ import { VerificationRequest } from "./verificationRequest.model.js";
 import { Attachment } from "../attachment/attachment.model.js";
 import { destroyImageFromCloudinary } from "../../utils/cloudinary.utils.js";
 import { deleteAttachmentsByEntity } from "../../utils/functions.js";
+import { User } from "../user/user.model.js";
+import jwt from 'jsonwebtoken'
 
 // ==========================================
 // 1. CREATE VERIFICATION REQUEST (User)
@@ -228,11 +230,45 @@ export const reviewVerificationRequest = asyncWrapper(
             );
         }
 
+        const verification = await VerificationRequest.findById(id)
+        console.log('verification', verification)
+        if (!verification) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "verification is required",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(verification.user, {
+            isIdentityVerified: true
+        }, { new: true, runValidators: true });
+
+        if (updatedUser?.isIdentityVerified) {
+            const token = jwt.sign({
+                email: updatedUser.email,
+                role: updatedUser.role,
+                isEmailVerified: updatedUser.isEmailVerified,
+                isIdentityVerified: updatedUser.isIdentityVerified
+            }, String(process.env.JWT_TOKEN_SECRET_KEY));
+
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: false, // true in production (https)
+                maxAge: 1000 * 60 * 60, // 1 hour
+            });
+
+        }
+
         const updatePayload: Record<string, any> = {
             status,
             reviewedBy,
             reviewedAt: new Date(),
         };
+
+
 
         if (rejectionReason !== undefined) updatePayload.rejectionReason = rejectionReason;
         if (notes !== undefined) updatePayload.notes = notes;
