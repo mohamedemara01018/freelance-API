@@ -8,34 +8,73 @@ import { cloudinaryFolderPath, statusText } from "../../utils/enums.utils.js";
 import { ICloudinaryProbs, replaceImageFromCloudinary, uploadImageToCloudinary } from "../../utils/cloudinary.utils.js";
 import e from "express";
 
-const getAllUser = asyncWrapper(async (req: Request, res: Response) => {
+const getAllUser = asyncWrapper(
+    async (req: Request, res: Response) => {
+        const pageNumber = Math.max(Number(req.query.pageNumber) || 1, 1);
+        const pageSize = Math.max(Number(req.query.pageSize) || 10, 1);
+        const skip = (pageNumber - 1) * pageSize;
 
-    const pageNumber = Math.max(Number(req.query.pageNumber) || 1, 1);
-    const pageSize = Math.max(Number(req.query.pageSize) || 10, 1);
-    const skip = (pageNumber - 1) * pageSize;
+        const {
+            search,
+            role,
+            isIdentityVerified,
+            status,
+        } = req.query;
 
+        const filter: Record<string, any> = {};
 
-    const totalUsers = await User.countDocuments();
+        // Search
+        if (search) {
+            filter.$or = [
+                { firstName: { $regex: search, $options: "i" } },
+                { lastName: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+            ];
+        }
 
-    const users = await User.find()
-        .select("-password -token -resetToken")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(pageSize);
+        // Role
+        if (role) {
+            filter.role = role;
+        }
 
-    res.status(200).json({
-        message: "All users returned successfully",
-        data: {
-            users,
-            pagination: {
-                pageNumber,
-                pageSize,
-                totalUsers,
-                totalPages: Math.ceil(totalUsers / pageSize),
+        // Identity verification
+        if (isIdentityVerified !== undefined) {
+            filter.isIdentityVerified =
+                isIdentityVerified === "true";
+        }
+
+        // Status
+        if (status) {
+            filter.status = status;
+        }
+
+        // Total filtered users
+        const totalUsers = await User.countDocuments(filter);
+
+        // Users
+        const users = await User.find(filter)
+            .select("-password -token -resetToken")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageSize)
+            .lean();
+
+        res.status(200).json({
+            message: "All users returned successfully",
+            data: {
+                users,
+                pagination: {
+                    pageNumber,
+                    pageSize,
+                    totalUsers,
+                    totalPages: Math.ceil(
+                        totalUsers / pageSize
+                    ),
+                },
             },
-        },
-    });
-});
+        });
+    }
+);
 
 
 const getUserById = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {

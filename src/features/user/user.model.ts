@@ -143,4 +143,23 @@ const userSchema = new Schema(
     }
 );
 
+userSchema.index({
+    firstName: "text",
+    lastName: "text",
+    email: "text",
+});
+
+userSchema.index({
+    role: 1,
+    status: 1,
+});
+
+userSchema.index({
+    isIdentityVerified: 1,
+});
+
+userSchema.index({
+    createdAt: -1,
+});
+
 export const User = model("User", userSchema);

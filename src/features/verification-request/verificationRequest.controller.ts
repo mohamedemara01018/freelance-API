@@ -9,6 +9,7 @@ import { destroyImageFromCloudinary } from "../../utils/cloudinary.utils.js";
 import { deleteAttachmentsByEntity } from "../../utils/functions.js";
 import { User } from "../user/user.model.js";
 import jwt from 'jsonwebtoken'
+import { Types } from "mongoose";
 
 // ==========================================
 // 1. CREATE VERIFICATION REQUEST (User)
@@ -87,12 +88,55 @@ export const createVerificationRequest = asyncWrapper(
 // ==========================================
 export const getAllVerificationRequests = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
-        const { status, user, page = 1, limit = 10 } = req.query;
+        const { status, user, search, page = 1, limit = 10 } = req.query;
 
         const filter: Record<string, any> = {};
 
-        if (status) filter.status = status;
-        if (user) filter.user = user;
+        // 1. Filter by status if provided
+        if (status) {
+            filter.status = status;
+        }
+
+        // 2. Filter by direct user ID if provided
+        if (user) {
+            filter.user = user;
+        }
+
+        // 3. Search by name, email, or VerificationRequest ID / User ID
+        if (search && typeof search === "string" && search.trim() !== "") {
+            const searchRegex = new RegExp(search.trim(), "i");
+            const searchConditions: Record<string, any>[] = [];
+
+            // Direct ID match check for VerificationRequest or User
+            if (Types.ObjectId.isValid(search.trim())) {
+                const targetId = new Types.ObjectId(search.trim());
+                searchConditions.push({ _id: targetId });
+                searchConditions.push({ user: targetId });
+            }
+
+            // Find matching users by name or email
+            const matchingUsers = await User.find({
+                $or: [
+                    { firstName: searchRegex },
+                    { lastName: searchRegex },
+                    { email: searchRegex },
+                ],
+            }).select("_id");
+
+            const matchingUserIds = matchingUsers.map((u) => u._id);
+
+            if (matchingUserIds.length > 0) {
+                searchConditions.push({ user: { $in: matchingUserIds } });
+            }
+
+            // Apply search conditions using $or
+            if (searchConditions.length > 0) {
+                filter.$or = searchConditions;
+            } else {
+                // If search query didn't match any valid ObjectId or User, return empty result
+                filter._id = null;
+            }
+        }
 
         const pageNum = Math.max(1, Number(page));
         const limitNum = Math.max(1, Number(limit));
@@ -241,9 +285,10 @@ export const reviewVerificationRequest = asyncWrapper(
                 })
             );
         }
+        const currentUser = await User.findById(verification.user);
 
         const updatedUser = await User.findByIdAndUpdate(verification.user, {
-            isIdentityVerified: true
+            isIdentityVerified: status == VerificationStatus.APPROVED ? true : status == VerificationStatus.REJECTED ? false : currentUser?.isIdentityVerified
         }, { new: true, runValidators: true });
 
         if (updatedUser?.isIdentityVerified) {
