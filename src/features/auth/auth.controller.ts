@@ -141,8 +141,10 @@ const registerNewUser = asyncWrapper(async (req: Request, res: Response, next: N
         role: role || 'user'
     });
 
-    const profile: IProfileInput = { ...defaultProfile, user: newUser._id }
-    await Profile.create(profile)
+    if (role == UserRole.FREELANCER) {
+        const profile: IProfileInput = { ...defaultProfile, user: newUser._id }
+        await Profile.create(profile)
+    }
 
     res.status(201).json({
         message: "User created successfully",
@@ -731,6 +733,11 @@ const talkWithGoogle = asyncWrapper(async (req: Request, res: Response, next: Ne
             providerId: profile.sub,
             avatar: profile.picture
         });
+
+        if (user.role == UserRole.FREELANCER) {
+            const profile: IProfileInput = { ...defaultProfile, user: user._id }
+            await Profile.create(profile)
+        }
     }
 
     // 4. Issue your own session/JWT, same as your normal login flow
