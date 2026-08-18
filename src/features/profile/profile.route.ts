@@ -8,6 +8,6 @@ const router = express.Router();
 router.get('/', getAllProfiles)
 router.get('/user-profile/:id', getUserProfileById)
 router.post('/', createNewProfile)
-router.put('/:id', editProfile)
+router.patch('/:id', editProfile)
 
 export default router

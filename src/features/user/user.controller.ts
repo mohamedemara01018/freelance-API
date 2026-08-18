@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
 import { cloudinaryFolderPath, statusText } from "../../utils/enums.utils.js";
-import { ICloudinaryProbs, replaceImageFromCloudinary, uploadImageToCloudinary } from "../../utils/cloudinary.utils.js";
+import { destroyImageFromCloudinary, ICloudinaryProbs, replaceImageFromCloudinary, uploadImageToCloudinary } from "../../utils/cloudinary.utils.js";
 import e from "express";
 
 const getAllUser = asyncWrapper(
@@ -107,7 +107,7 @@ const getUserById = asyncWrapper(async (req: Request, res: Response, next: NextF
 
 
 const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
-    const { firstName, lastName, country, governorate, city } = req.body;
+    const { firstName, lastName, country, city, phone } = req.body;
 
     if (!firstName?.trim()) {
         return next(
@@ -128,47 +128,6 @@ const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFu
             })
         );
     }
-    if (!country?.trim()) {
-        return next(
-            appError({
-                statusCode: 400,
-                message: "country is required.",
-                statusText: statusText.FAIL,
-            })
-        );
-    }
-
-    if (!governorate?.trim()) {
-        return next(
-            appError({
-                statusCode: 400,
-                message: "governorate is required.",
-                statusText: statusText.FAIL,
-            })
-        );
-    }
-
-    if (!city?.trim()) {
-        return next(
-            appError({
-                statusCode: 400,
-                message: "city is required.",
-                statusText: statusText.FAIL,
-            })
-        );
-    }
-
-
-    const decode = jwt.verify(req.cookies.token, process.env.JWT_TOKEN_SECRET_KEY!) as { email: string }
-    const currentUser = await User.findOne({ email: decode.email });
-
-    let result;
-    if (!currentUser?.public_id) {
-        const fileName = `image-${Date.now()}`
-        result = await uploadImageToCloudinary(req.file?.buffer!, cloudinaryFolderPath.IMAGE, fileName) as ICloudinaryProbs
-    } else {
-        result = await replaceImageFromCloudinary(req.file?.buffer!, currentUser?.public_id!) as ICloudinaryProbs
-    }
 
     const updatedUser = await User.findOneAndUpdate(
         { email: String(req.currentUser?.email) },
@@ -176,10 +135,8 @@ const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFu
             firstName,
             lastName,
             country,
-            governorate,
+            phone,
             city,
-            avatar: result.secure_url,
-            public_id: result.public_id
         },
         {
             new: true,
@@ -199,7 +156,7 @@ const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFu
 
     res.status(200).json({
         message: "Profile updated successfully.",
-        data: updatedUser,
+        data: { user: updatedUser },
     });
 });
 
@@ -314,10 +271,133 @@ const me = asyncWrapper(async (req: Request, res: Response, next: NextFunction) 
 })
 
 
+const changeAvatar = asyncWrapper(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const token = req.cookies.token;
+        const file = req.file;
+
+        if (!token) {
+            return next(appError({
+                statusCode: 401,
+                message: 'Unauthorized: Token missing',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        if (!file) {
+            return next(appError({
+                statusCode: 400,
+                message: 'Please upload an image file',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        const payload = jwt.verify(
+            token,
+            String(process.env.JWT_TOKEN_SECRET_KEY)
+        ) as { email: string };
+
+        const currentUser = await User.findOne({ email: payload?.email });
+
+        if (!currentUser) {
+            return next(appError({
+                statusCode: 404,
+                message: 'User not found',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        let uploadResult: ICloudinaryProbs;
+
+        if (currentUser.avatar && currentUser.public_id) {
+            uploadResult = await replaceImageFromCloudinary(
+                file.buffer,
+                currentUser.public_id
+            ) as ICloudinaryProbs;
+        } else {
+            const fileName = `image-${Date.now()}`;
+            uploadResult = await uploadImageToCloudinary(
+                file.buffer,
+                cloudinaryFolderPath.IMAGE,
+                fileName
+            ) as ICloudinaryProbs;
+        }
+
+        currentUser.avatar = uploadResult.secure_url;
+        currentUser.public_id = uploadResult.public_id;
+        await currentUser.save();
+
+        return res.status(200).json({
+            status: statusText.SUCCESS,
+            data: {
+                user: currentUser
+            }
+        });
+    }
+);
+
+
+const removeAvatar = asyncWrapper(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const token = req.cookies.token;
+
+        if (!token) {
+            return next(appError({
+                statusCode: 401,
+                message: 'Unauthorized: Token missing',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        const payload = jwt.verify(
+            token,
+            String(process.env.JWT_TOKEN_SECRET_KEY)
+        ) as { email: string };
+
+        const currentUser = await User.findOne({ email: payload?.email });
+
+        if (!currentUser) {
+            return next(appError({
+                statusCode: 404,
+                message: 'User not found',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        // Check if the user actually has an avatar to delete
+        if (!currentUser.public_id) {
+            return next(appError({
+                statusCode: 400,
+                message: 'No profile image to remove',
+                statusText: statusText.FAIL
+            }));
+        }
+
+        // Delete the image from Cloudinary
+        await destroyImageFromCloudinary(currentUser.public_id);
+
+        // Clear image fields in the database
+        currentUser.avatar = null;
+        currentUser.public_id = null;
+        await currentUser.save();
+
+        return res.status(200).json({
+            status: statusText.SUCCESS,
+            message: 'Profile image removed successfully',
+            data: {
+                user: currentUser
+            }
+        });
+    }
+);
+
+
 export {
     getAllUser,
     getUserById,
     updateUser,
     changePassword,
-    me
+    me,
+    changeAvatar,
+    removeAvatar
 }

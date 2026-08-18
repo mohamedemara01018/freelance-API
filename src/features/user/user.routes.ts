@@ -1,5 +1,5 @@
 import express from 'express'
-import { changePassword, getAllUser, getUserById, me, updateUser } from './user.controller.js';
+import { changeAvatar, changePassword, getAllUser, getUserById, me, removeAvatar, updateUser } from './user.controller.js';
 import { authenticationMiddleware } from '../../middleware/authentication.middleware.js';
 import { upload } from '../../middleware/multer.middleware.js';
 
@@ -15,14 +15,16 @@ router
     .get(getUserById)
 
 router
-    .route('/update/:id')
-    .put(authenticationMiddleware, upload.single('avatar'), updateUser)
+    .route('/update')
+    .put(authenticationMiddleware, updateUser)
 
 router
     .route('/change-password')
     .put(authenticationMiddleware, changePassword)
 
 router.get('/user/me', authenticationMiddleware, me)
+router.put('/image/change', upload.single('avatar'), changeAvatar)
+router.delete('/image/remove', removeAvatar)
 
 
 
