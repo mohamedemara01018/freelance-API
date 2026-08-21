@@ -41,11 +41,31 @@ export const createEmploymentHistory = asyncWrapper(
             description,
         } = req.body;
 
-        if (!profile || !company || !position) {
+        if (!profile) {
             return next(
                 appError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    message: "profile, company, and position fields are required",
+                    message: "profile fields are required",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        if (!company) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: " company fields are required",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        if (!position) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "position fields are required",
                     statusText: statusText.FAIL,
                 })
             );
