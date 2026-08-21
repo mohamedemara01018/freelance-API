@@ -25,7 +25,8 @@ import saveJobRoutes from './features/save-job/savedJob.route'
 import attachmentRoutes from './features/attachment/attachment.route'
 import portfolioItemRoutes from './features/portfolio-item/portfolioItem.route'
 import verificationRoutes from './features/verification-request/verificationRequest.route'
-
+import countryRoutes from './features/country/country.route';
+import cityRoutes from './features/city/city.route'
 const app: Application = express();
 
 /* ===========================
@@ -102,6 +103,8 @@ app.use("/api/save-job", saveJobRoutes);
 app.use("/api/attachment", attachmentRoutes);
 app.use('/api/portfolio-item', portfolioItemRoutes)
 app.use('/api/verifiction', verificationRoutes)
+app.use('/api/country', countryRoutes)
+app.use('/api/city', cityRoutes)
 /* ===========================
    404 Handler
 =========================== */
