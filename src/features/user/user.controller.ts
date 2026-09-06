@@ -1,12 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { User } from "./user.model.js";
 import { appError } from "../../utils/appError.utils.js";
-import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
 import { cloudinaryFolderPath, statusText } from "../../utils/enums.utils.js";
 import { destroyImageFromCloudinary, ICloudinaryProbs, replaceImageFromCloudinary, uploadImageToCloudinary } from "../../utils/cloudinary.utils.js";
-import e from "express";
 
 const getAllUser = asyncWrapper(
     async (req: Request, res: Response) => {
@@ -54,6 +53,8 @@ const getAllUser = asyncWrapper(
         // Users
         const users = await User.find(filter)
             .select("-password -token -resetToken")
+            .populate("country")
+            .populate("city")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageSize)
@@ -76,7 +77,6 @@ const getAllUser = asyncWrapper(
     }
 );
 
-
 const getUserById = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
 
@@ -85,16 +85,19 @@ const getUserById = asyncWrapper(async (req: Request, res: Response, next: NextF
             statusCode: 404,
             message: 'id not found',
             statusText: statusText.FAIL
-        }))
+        }));
     }
 
-    const user = await User.findById(id);
+    const user = await User.findById(id)
+        .populate("country")
+        .populate("city");
+
     if (!user?.email) {
         return next(appError({
             statusCode: 404,
             message: 'user not found',
             statusText: statusText.FAIL
-        }))
+        }));
     }
 
     res.status(200).json({
@@ -102,9 +105,8 @@ const getUserById = asyncWrapper(async (req: Request, res: Response, next: NextF
         data: {
             user
         }
-    })
-})
-
+    });
+});
 
 const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
     const { firstName, lastName, country, city, phone } = req.body;
@@ -142,7 +144,10 @@ const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFu
             new: true,
             runValidators: true,
         }
-    ).select("-password -token -resetToken");
+    )
+        .select("-password -token -resetToken")
+        .populate("country")
+        .populate("city");
 
     if (!updatedUser) {
         return next(
@@ -159,7 +164,6 @@ const updateUser = asyncWrapper(async (req: Request, res: Response, next: NextFu
         data: { user: updatedUser },
     });
 });
-
 
 const changePassword = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
     const { currentPassword, newPassword } = req.body;
@@ -229,7 +233,7 @@ const changePassword = asyncWrapper(async (req: Request, res: Response, next: Ne
     }
 
     // hash password
-    const salt = await bcrypt.genSalt(10)
+    const salt = await bcrypt.genSalt(10);
     currentUser.password = await bcrypt.hash(newPassword, salt);
 
     await currentUser.save();
@@ -241,35 +245,32 @@ const changePassword = asyncWrapper(async (req: Request, res: Response, next: Ne
     });
 });
 
-
 const me = asyncWrapper(async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies.token;
-    console.log(token)
 
     if (!token) {
         return next(appError({
             statusCode: 401,
             message: 'user not found',
             statusText: statusText.FAIL
-        }))
+        }));
     }
 
-    const payload = jwt.verify(token, String(process.env.JWT_TOKEN_SECRET_KEY)) as { email: string }
-    console.log(payload)
+    const payload = jwt.verify(token, String(process.env.JWT_TOKEN_SECRET_KEY)) as { email: string };
 
-    const email = payload?.email
-    const currentUser = await User.findOne({ email: String(email) }).select('-verifiedEmailCode -emailCodeExpiresAt -verifiedPhoneCode -phoneCodeExpiresAt -resetToken -resetTokenExpiresAt -refreshTokenVersion -deletedAt -password');
+    const email = payload?.email;
+    const currentUser = await User.findOne({ email: String(email) })
+        .select('-verifiedEmailCode -emailCodeExpiresAt -verifiedPhoneCode -phoneCodeExpiresAt -resetToken -resetTokenExpiresAt -refreshTokenVersion -deletedAt -password')
+        .populate("country")
+        .populate("city");
 
     res.status(200).json({
         message: 'user founded',
         data: {
             user: currentUser
         }
-    })
-
-
-})
-
+    });
+});
 
 const changeAvatar = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -336,7 +337,6 @@ const changeAvatar = asyncWrapper(
     }
 );
 
-
 const removeAvatar = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
         const token = req.cookies.token;
@@ -391,7 +391,6 @@ const removeAvatar = asyncWrapper(
     }
 );
 
-
 export {
     getAllUser,
     getUserById,
@@ -400,4 +399,4 @@ export {
     me,
     changeAvatar,
     removeAvatar
-}
+};

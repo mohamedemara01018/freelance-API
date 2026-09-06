@@ -1,8 +1,6 @@
 import { Schema, model } from "mongoose";
 import { UserRole, UserStatus } from "../../utils/enums.utils";
 
-
-
 const userSchema = new Schema(
     {
         firstName: {
@@ -52,12 +50,14 @@ const userSchema = new Schema(
         },
 
         country: {
-            type: String,
+            type: Schema.Types.ObjectId,
+            ref: "Country",
             default: null,
         },
 
         city: {
-            type: String,
+            type: Schema.Types.ObjectId,
+            ref: "City",
             default: null,
         },
 
@@ -81,11 +81,11 @@ const userSchema = new Schema(
 
         resetToken: {
             type: String,
-            default: null
+            default: null,
         },
         resetTokenExpiresAt: {
             type: String,
-            default: null
+            default: null,
         },
 
         isEmailVerified: {

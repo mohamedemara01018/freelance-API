@@ -83,6 +83,66 @@ export const getCityById = asyncWrapper(
 );
 
 // ==========================================
+// GET CITIES BY COUNTRY ID
+// ==========================================
+export const getCitiesByCountry = asyncWrapper(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { countryId } = req.params;
+        const search = req.query.search as string | undefined;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+
+        // 1. Validate that the country exists
+        const parentCountry = await Country.findById(countryId);
+        if (!parentCountry) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.NOT_FOUND,
+                    message: "Country not found",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        // 2. Build filter query
+        const filter: Record<string, any> = { country: countryId };
+
+        if (search) {
+            filter.name = { $regex: search, $options: "i" };
+        }
+
+        const skip = (page - 1) * limit;
+
+        // 3. Execute concurrent database queries
+        const [cities, totalItems] = await Promise.all([
+            City.find(filter)
+                .populate("country", "name code flag")
+                .sort({ name: 1 })
+                .skip(skip)
+                .limit(limit),
+            City.countDocuments(filter),
+        ]);
+
+        const totalPages = Math.ceil(totalItems / limit) || 1;
+
+        // 4. Send response
+        res.status(StatusCodes.OK).json({
+            status: statusText.SUCCESS,
+            message: "Cities for target country retrieved successfully",
+            data: {
+                cities,
+                pagination: {
+                    page,
+                    limit,
+                    totalItems,
+                    totalPages,
+                },
+            },
+        });
+    }
+);
+
+// ==========================================
 // 3. CREATE CITY
 // ==========================================
 export const createCity = asyncWrapper(

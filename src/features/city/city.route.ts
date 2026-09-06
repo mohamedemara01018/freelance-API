@@ -5,6 +5,7 @@ import {
     createCity,
     editCity,
     deleteCity,
+    getCitiesByCountry,
 } from "./city.controller.js";
 
 const router = Router();
@@ -23,5 +24,7 @@ router
     .get(getCityById)
     .patch(editCity)
     .delete(deleteCity);
+router.get('/cities/:countryId', getCitiesByCountry)
+
 
 export default router;
