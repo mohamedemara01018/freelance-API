@@ -42,6 +42,13 @@ export enum LanguageLevel {
     NATIVE = "native",
 }
 
+export enum JobDuration {
+    LESS_THAN_1_MONTH = "less_than_1_month",
+    ONE_TO_THREE_MONTHS = "1_to_3_months",
+    THREE_TO_SIX_MONTHS = "3_to_6_months",
+    MORE_THAN_6_MONTHS = "more_than_6_months",
+}
+
 export enum ExperienceLevel {
     ENTRY = "entry",
     INTERMEDIATE = "intermediate",

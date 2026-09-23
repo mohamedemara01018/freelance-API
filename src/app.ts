@@ -19,6 +19,7 @@ import employmentHistoryRoutes from './features/employment-history/employmentHis
 import categoryRoutes from './features/category/category.route'
 import skillRoutes from './features/skill/skill.route'
 import profileSkillRoutes from './features/profile-skill/profileSkill.route'
+import jobSkillRoutes from './features/job-skill/jobSkill.routes'
 import jobRoutes from './features/job/job.route'
 import proposalRoutes from './features/proposal/proposal.route'
 import saveJobRoutes from './features/save-job/savedJob.route'
@@ -97,6 +98,7 @@ app.use("/api/employment-histroy", employmentHistoryRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/skill", skillRoutes);
 app.use("/api/profile-skill", profileSkillRoutes);
+app.use("/api/job-skill", jobSkillRoutes);
 app.use("/api/job", jobRoutes);
 app.use("/api/proposal", proposalRoutes);
 app.use("/api/save-job", saveJobRoutes);

@@ -1,5 +1,5 @@
 import { Schema, model, Types } from "mongoose";
-import { ExperienceLevel, JobStatus, JobType, JobVisibility } from "../../utils/enums.utils";
+import { ExperienceLevel, JobDuration, JobStatus, JobType, JobVisibility } from "../../utils/enums.utils";
 
 
 
@@ -58,13 +58,8 @@ const jobSchema = new Schema(
 
         duration: {
             type: String,
-            enum: [
-                "less_than_1_month",
-                "1_to_3_months",
-                "3_to_6_months",
-                "more_than_6_months",
-            ],
-            default: null,
+            enum: Object.values(JobDuration),
+            default: JobDuration.LESS_THAN_1_MONTH,
         },
 
         experienceLevel: {

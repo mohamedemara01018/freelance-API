@@ -1,11 +1,27 @@
 import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
+import mongoose from "mongoose";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
 import { AttachmentEntityType, cloudinaryFolderPath, statusText } from "../../utils/enums.utils.js";
 import { Attachment } from "./attachment.model.js";
 import { destroyImageFromCloudinary, ICloudinaryProbs, uploadImageToCloudinary } from "../../utils/cloudinary.utils.js";
+
+// Models for entity validation
 import { VerificationRequest } from "../verification-request/verificationRequest.model.js";
+import { Job } from "../job/job.model.js";
+import { Proposal } from "../proposal/proposal.model.js";
+
+
+// Helper map to dynamically fetch the target entity model
+const entityModelMap: Partial<Record<AttachmentEntityType, mongoose.Model<any>>> = {
+    [AttachmentEntityType.VERIFICATION]: VerificationRequest,
+    [AttachmentEntityType.JOB]: Job,
+    [AttachmentEntityType.PROPOSAL]: Proposal,
+    // [AttachmentEntityType.MESSAGE]: Message,
+    // [AttachmentEntityType.MILESTONE]: Milestone,
+    // [AttachmentEntityType.PORTFOLIO]: Portfolio,
+};
 
 // ==========================================
 // 1. GET ALL ATTACHMENTS (Filter by entity, user, or fileType)
@@ -114,7 +130,6 @@ export const createAttachment = asyncWrapper(
         if (Array.isArray(req.files)) {
             fileList = req.files;
         } else if (req.files && typeof req.files === "object") {
-            // Handle dictionary of fields (e.g., req.files['attachments'])
             fileList = Object.values(req.files).flat();
         } else if (req.file) {
             fileList = [req.file];
@@ -131,37 +146,24 @@ export const createAttachment = asyncWrapper(
             );
         }
 
-        const { entityId, entityType, uploadedBy } = req.body;
+        const { entityId, entityType } = req.body;
+        const uploadedBy = (req as any).user?._id || req.body.uploadedBy;
 
-        if (!entityId) {
+        if (!entityId || !mongoose.Types.ObjectId.isValid(entityId)) {
             return next(
                 appError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    message: "entityId is required",
+                    message: "A valid entityId ObjectID is required",
                     statusText: statusText.FAIL,
                 })
             );
         }
 
-        if (!entityType) {
+        if (!entityType || !Object.values(AttachmentEntityType).includes(entityType)) {
             return next(
                 appError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    message: "entityType is required",
-                    statusText: statusText.FAIL,
-                })
-            );
-        }
-        let entity;
-        if (entityType == AttachmentEntityType.VERIFICATION) {
-            entity = await VerificationRequest.findById(entityId);
-        }
-
-        if (!entity) {
-            return next(
-                appError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    message: `entity id is wrong`,
+                    message: `entityType is required and must be one of: ${Object.values(AttachmentEntityType).join(", ")}`,
                     statusText: statusText.FAIL,
                 })
             );
@@ -177,7 +179,22 @@ export const createAttachment = asyncWrapper(
             );
         }
 
-        // 2. Concurrently upload files to Cloudinary
+        // 2. Validate entity existence dynamically across registered models
+        const TargetModel = entityModelMap[entityType as AttachmentEntityType];
+        if (TargetModel) {
+            const entityExists = await TargetModel.exists({ _id: entityId });
+            if (!entityExists) {
+                return next(
+                    appError({
+                        statusCode: StatusCodes.NOT_FOUND,
+                        message: `Target ${entityType} entity with ID '${entityId}' does not exist`,
+                        statusText: statusText.FAIL,
+                    })
+                );
+            }
+        }
+
+        // 3. Concurrently upload files to Cloudinary
         const uploadPromises = fileList.map((file) => {
             const fileName = `image-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
             return uploadImageToCloudinary(
@@ -189,20 +206,20 @@ export const createAttachment = asyncWrapper(
 
         const uploadResults = await Promise.all(uploadPromises);
 
-        // 3. Map uploaded data to Attachment schema structure
+        // 4. Map uploaded data to Attachment schema structure
         const attachmentsToCreate = uploadResults.map((result, index) => ({
             url: result.secure_url,
             publicId: result.public_id,
             originalName: fileList[index].originalname,
             mimeType: fileList[index].mimetype,
-            fileName: result.display_name,
+            fileName: result.display_name || fileList[index].originalname,
             size: fileList[index].size,
-            entityId: entityId,
-            entityType: entityType,
-            uploadedBy: uploadedBy,
+            entityId,
+            entityType,
+            uploadedBy,
         }));
 
-        // 4. Save to Database
+        // 5. Save to Database
         const createdAttachments = await Attachment.insertMany(attachmentsToCreate);
 
         res.status(StatusCodes.CREATED).json({
@@ -212,6 +229,7 @@ export const createAttachment = asyncWrapper(
         });
     }
 );
+
 // ==========================================
 // 5. DELETE ATTACHMENT BY ID
 // ==========================================
@@ -231,8 +249,9 @@ export const deleteAttachment = asyncWrapper(
             );
         }
 
-        await destroyImageFromCloudinary(deletedAttachment?.publicId as string)
-        // Note: You can trigger Cloudinary/S3 deletion logic here using deletedAttachment.publicId
+        if (deletedAttachment.publicId) {
+            await destroyImageFromCloudinary(deletedAttachment.publicId);
+        }
 
         res.status(StatusCodes.OK).json({
             status: statusText.SUCCESS,

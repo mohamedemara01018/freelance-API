@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
-import { JobStatus, statusText } from "../../utils/enums.utils.js";
+import { AttachmentEntityType, JobStatus, statusText } from "../../utils/enums.utils.js";
 import { Job } from "./job.model.js";
+import { deleteAttachmentsByEntity } from "../../utils/functions.js";
 
 // ==========================================
 // 1. GET ALL JOBS (With Search, Filtering & Pagination)
@@ -224,9 +225,22 @@ export const editJob = asyncWrapper(
 // ==========================================
 // 5. DELETE JOB POSTING
 // ==========================================
+// ==========================================
+// 5. DELETE JOB POSTING
+// ==========================================
 export const deleteJob = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
         const { id } = req.params;
+
+        if (!id) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "Job id is required",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
 
         const deletedJob = await Job.findByIdAndDelete(id);
 
@@ -240,9 +254,15 @@ export const deleteJob = asyncWrapper(
             );
         }
 
+        // Clean up external storage & database records for attachments linked to this job
+        await deleteAttachmentsByEntity(
+            AttachmentEntityType.JOB,
+            id as string
+        );
+
         res.status(StatusCodes.OK).json({
             status: statusText.SUCCESS,
-            message: "Job posting deleted successfully",
+            message: "Job posting and associated attachments deleted successfully",
             data: null,
         });
     }

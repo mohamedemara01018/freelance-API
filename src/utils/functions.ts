@@ -28,5 +28,5 @@ export const deleteAttachmentsByEntity = async (
             .map((attachment) =>
                 destroyImageFromCloudinary(attachment.publicId)
             )
-    );
+    );  
 };
