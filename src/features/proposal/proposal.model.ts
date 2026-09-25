@@ -1,18 +1,7 @@
 import { Schema, model, Types } from "mongoose";
+import { DeliveryDurationUnit, ProposalStatus } from "../../utils/enums.utils";
 
-export enum ProposalStatus {
-    PENDING = "pending",
-    SHORTLISTED = "shortlisted",
-    ACCEPTED = "accepted",
-    REJECTED = "rejected",
-    WITHDRAWN = "withdrawn",
-}
 
-export enum DeliveryDurationUnit {
-    DAYS = "days",
-    WEEKS = "weeks",
-    MONTHS = "months",
-}
 
 const proposalSchema = new Schema(
     {

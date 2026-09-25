@@ -2,9 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
-import { JobStatus, statusText } from "../../utils/enums.utils.js";
-import { Proposal, ProposalStatus } from "./proposal.model.js";
+import { JobStatus, ProposalStatus, statusText } from "../../utils/enums.utils.js";
 import { Job } from "../job/job.model.js";
+import { Proposal } from "./proposal.model.js";
 
 // ==========================================
 // 1. GET PROPOSALS (Supports filtering by Job or Freelancer)

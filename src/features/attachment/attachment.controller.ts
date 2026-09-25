@@ -12,7 +12,6 @@ import { VerificationRequest } from "../verification-request/verificationRequest
 import { Job } from "../job/job.model.js";
 import { Proposal } from "../proposal/proposal.model.js";
 
-
 // Helper map to dynamically fetch the target entity model
 const entityModelMap: Partial<Record<AttachmentEntityType, mongoose.Model<any>>> = {
     [AttachmentEntityType.VERIFICATION]: VerificationRequest,
@@ -194,13 +193,24 @@ export const createAttachment = asyncWrapper(
             }
         }
 
-        // 3. Concurrently upload files to Cloudinary
+        // 3. Concurrently upload files to Cloudinary targeting destination folder & resource type
         const uploadPromises = fileList.map((file) => {
-            const fileName = `image-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+            const isPdf = file.mimetype.includes("pdf");
+            const fileName = isPdf
+                ? `pdf-${Date.now()}-${Math.round(Math.random() * 1e9)}.pdf`
+                : `image-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+            // Determine dynamic target folder by MIME type
+            const targetFolder = isPdf
+                ? cloudinaryFolderPath.PDF
+                : cloudinaryFolderPath.IMAGE;
+
+            // Pass resource_type as "raw" for PDFs, "image" for images
             return uploadImageToCloudinary(
                 file.buffer,
-                cloudinaryFolderPath.IMAGE,
-                fileName
+                targetFolder,
+                fileName,
+                isPdf ? "raw" : "image"
             ) as Promise<ICloudinaryProbs>;
         });
 
@@ -250,7 +260,11 @@ export const deleteAttachment = asyncWrapper(
         }
 
         if (deletedAttachment.publicId) {
-            await destroyImageFromCloudinary(deletedAttachment.publicId);
+            const isPdf = deletedAttachment.mimeType?.includes("pdf");
+            await destroyImageFromCloudinary(
+                deletedAttachment.publicId,
+                isPdf ? "raw" : "image"
+            );
         }
 
         res.status(StatusCodes.OK).json({

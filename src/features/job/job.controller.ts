@@ -26,11 +26,14 @@ export const getAllJobs = asyncWrapper(
 
         const filter: Record<string, any> = {};
 
-        // By default, only show open & public jobs to users unless specifically filtered
+        // Default to OPEN status if not explicitly passed
         filter.status = status || JobStatus.OPEN;
 
         if (search) {
-            filter.$text = { $search: search as string };
+            filter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+            ];
         }
 
         if (category) filter.category = category;
@@ -38,11 +41,18 @@ export const getAllJobs = asyncWrapper(
         if (experienceLevel) filter.experienceLevel = experienceLevel;
         if (client) filter.client = client;
 
-        // Budget filtering
+        // Dynamic budget / hourly rate filtering
         if (minBudget || maxBudget) {
-            filter.budget = {};
-            if (minBudget) filter.budget.$gte = Number(minBudget);
-            if (maxBudget) filter.budget.$lte = Number(maxBudget);
+            const min = minBudget ? Number(minBudget) : 0;
+            const max = maxBudget ? Number(maxBudget) : Infinity;
+
+            filter.$or = [
+                { budget: { $gte: min, $lte: max } },
+                {
+                    hourlyRateFrom: { $gte: min },
+                    hourlyRateTo: { $lte: max },
+                },
+            ];
         }
 
         const pageNum = Math.max(1, Number(page));
@@ -55,7 +65,8 @@ export const getAllJobs = asyncWrapper(
                 .populate("category", "name")
                 .sort({ createdAt: -1 })
                 .skip(skip)
-                .limit(limitNum),
+                .limit(limitNum)
+                .lean(),
             Job.countDocuments(filter),
         ]);
 
@@ -222,9 +233,7 @@ export const editJob = asyncWrapper(
     }
 );
 
-// ==========================================
-// 5. DELETE JOB POSTING
-// ==========================================
+
 // ==========================================
 // 5. DELETE JOB POSTING
 // ==========================================

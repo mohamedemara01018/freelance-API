@@ -28,6 +28,8 @@ import portfolioItemRoutes from './features/portfolio-item/portfolioItem.route'
 import verificationRoutes from './features/verification-request/verificationRequest.route'
 import countryRoutes from './features/country/country.route';
 import cityRoutes from './features/city/city.route'
+import notificationRoutes from './features/notification/notification.routes'
+
 const app: Application = express();
 
 /* ===========================
@@ -107,8 +109,10 @@ app.use('/api/portfolio-item', portfolioItemRoutes)
 app.use('/api/verifiction', verificationRoutes)
 app.use('/api/country', countryRoutes)
 app.use('/api/city', cityRoutes)
+app.use('/api/notification', notificationRoutes)
+
 /* ===========================
-   404 Handler
+    404 Handler
 =========================== */
 
 app.all("/*splat", (req, res) => {
@@ -119,7 +123,7 @@ app.all("/*splat", (req, res) => {
 });
 
 /* ===========================
-   Global Error Handler
+    Global Error Handler
 =========================== */
 
 app.use(globalErrorHandler);

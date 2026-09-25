@@ -56,7 +56,40 @@ export const getUserSavedJobs = asyncWrapper(
 );
 
 // ==========================================
-// 2. SAVE A JOB (Bookmark)
+// 2. CHECK IF A JOB IS SAVED BY USER
+// ==========================================
+export const isJobSaved = asyncWrapper(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { user, job } = req.query;
+
+        if (!user || !job) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "Both user and job query parameters are required",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        const savedRecord = await SavedJob.findOne({
+            user: String(user),
+            job: String(job),
+        });
+
+        res.status(StatusCodes.OK).json({
+            status: statusText.SUCCESS,
+            message: "Saved status retrieved successfully",
+            data: {
+                isSaved: Boolean(savedRecord),
+                savedJobId: savedRecord ? savedRecord._id : null,
+            },
+        });
+    }
+);
+
+// ==========================================
+// 3. SAVE A JOB (Bookmark)
 // ==========================================
 export const saveJob = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -113,7 +146,7 @@ export const saveJob = asyncWrapper(
 );
 
 // ==========================================
-// 3. TOGGLE SAVE / UNSAVE JOB
+// 4. TOGGLE SAVE / UNSAVE JOB
 // ==========================================
 export const toggleSaveJob = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -154,7 +187,7 @@ export const toggleSaveJob = asyncWrapper(
 );
 
 // ==========================================
-// 4. UNSAVE / REMOVE SAVED JOB BY ID
+// 5. UNSAVE / REMOVE SAVED JOB BY ID
 // ==========================================
 export const unsaveJob = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {

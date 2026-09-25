@@ -23,7 +23,8 @@ export enum statusText {
 }
 
 export enum cloudinaryFolderPath {
-    IMAGE = 'freelance-app/images'
+    IMAGE = 'freelance-app/images',
+    PDF = 'freelance-app/pdfs'
 }
 
 
@@ -135,4 +136,69 @@ export enum DocumentType {
     NATIONAL_ID = "national_id",
     PASSPORT = "passport",
     DRIVING_LICENSE = "driving_license",
+}
+
+
+export enum ProposalStatus {
+    PENDING = "pending",
+    SHORTLISTED = "shortlisted",
+    ACCEPTED = "accepted",
+    REJECTED = "rejected",
+    WITHDRAWN = "withdrawn",
+}
+
+export enum DeliveryDurationUnit {
+    DAYS = "days",
+    WEEKS = "weeks",
+    MONTHS = "months",
+}
+
+
+export enum NotificationType {
+    PROPOSAL_RECEIVED = "proposal_received",
+    PROPOSAL_ACCEPTED = "proposal_accepted",
+    PROPOSAL_REJECTED = "proposal_rejected",
+
+    INVITATION_RECEIVED = "invitation_received",
+
+    CONTRACT_CREATED = "contract_created",
+    CONTRACT_UPDATED = "contract_updated",
+    CONTRACT_COMPLETED = "contract_completed",
+
+    MILESTONE_CREATED = "milestone_created",
+    MILESTONE_SUBMITTED = "milestone_submitted",
+    MILESTONE_APPROVED = "milestone_approved",
+    MILESTONE_REJECTED = "milestone_rejected",
+
+    PAYMENT_RECEIVED = "payment_received",
+    PAYMENT_SENT = "payment_sent",
+    PAYMENT_FAILED = "payment_failed",
+
+    MESSAGE_RECEIVED = "message_received",
+
+    JOB_POSTED = "job_posted",
+    JOB_CLOSED = "job_closed",
+
+    REVIEW_RECEIVED = "review_received",
+
+    VERIFICATION_APPROVED = "verification_approved",
+    VERIFICATION_REJECTED = "verification_rejected",
+
+    WITHDRAWAL_COMPLETED = "withdrawal_completed",
+    WITHDRAWAL_FAILED = "withdrawal_failed",
+
+    SYSTEM = "system",
+}
+
+export enum NotificationEntityType {
+    JOB = "job",
+    PROPOSAL = "proposal",
+    CONTRACT = "contract",
+    MILESTONE = "milestone",
+    PAYMENT = "payment",
+    MESSAGE = "message",
+    REVIEW = "review",
+    VERIFICATION = "verification",
+    WITHDRAWAL = "withdrawal",
+    SYSTEM = "system",
 }

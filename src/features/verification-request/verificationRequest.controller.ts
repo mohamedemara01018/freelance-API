@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 import { appError } from "../../utils/appError.utils.js";
 import asyncWrapper from "../../utils/asyncWrapper.utils.js";
-import { AttachmentEntityType, DocumentType, statusText, VerificationStatus } from "../../utils/enums.utils.js";
+import { AttachmentEntityType, DocumentType, NotificationEntityType, NotificationType, statusText, VerificationStatus } from "../../utils/enums.utils.js";
 import { VerificationRequest } from "./verificationRequest.model.js";
 import { Attachment } from "../attachment/attachment.model.js";
 import { destroyImageFromCloudinary } from "../../utils/cloudinary.utils.js";
@@ -10,6 +10,8 @@ import { deleteAttachmentsByEntity } from "../../utils/functions.js";
 import { User } from "../user/user.model.js";
 import jwt from 'jsonwebtoken'
 import { Types } from "mongoose";
+import { Notification } from "../notification/notification.model.js";
+import { getIO } from "../../socket.js";
 
 // ==========================================
 // 1. CREATE VERIFICATION REQUEST (User)
@@ -248,7 +250,7 @@ export const reviewVerificationRequest = asyncWrapper(
             return next(
                 appError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    message: "reviewedBy (Admin ID) are required",
+                    message: "reviewedBy (Admin ID) is required",
                     statusText: statusText.FAIL,
                 })
             );
@@ -258,7 +260,7 @@ export const reviewVerificationRequest = asyncWrapper(
             return next(
                 appError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    message: "Invalid status status. Must be IN_REVIEW, APPROVED, or REJECTED",
+                    message: "Invalid status. Must be IN_REVIEW, APPROVED, or REJECTED",
                     statusText: statusText.FAIL,
                 })
             );
@@ -274,46 +276,34 @@ export const reviewVerificationRequest = asyncWrapper(
             );
         }
 
-        const verification = await VerificationRequest.findById(id)
-        console.log('verification', verification)
+        const verification = await VerificationRequest.findById(id);
         if (!verification) {
             return next(
                 appError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    message: "verification is required",
+                    statusCode: StatusCodes.NOT_FOUND,
+                    message: "Verification request not found",
                     statusText: statusText.FAIL,
                 })
             );
         }
+
         const currentUser = await User.findById(verification.user);
 
-        const updatedUser = await User.findByIdAndUpdate(verification.user, {
-            isIdentityVerified: status == VerificationStatus.APPROVED ? true : status == VerificationStatus.REJECTED ? false : currentUser?.isIdentityVerified
-        }, { new: true, runValidators: true });
+        // Update target user's identity verification state
+        const isVerified = status === VerificationStatus.APPROVED ? true : status === VerificationStatus.REJECTED ? false : currentUser?.isIdentityVerified;
 
-        if (updatedUser?.isIdentityVerified) {
-            const token = jwt.sign({
-                email: updatedUser.email,
-                role: updatedUser.role,
-                isEmailVerified: updatedUser.isEmailVerified,
-                isIdentityVerified: updatedUser.isIdentityVerified
-            }, String(process.env.JWT_TOKEN_SECRET_KEY));
+        const updatedUser = await User.findByIdAndUpdate(
+            verification.user,
+            { isIdentityVerified: isVerified },
+            { new: true, runValidators: true }
+        );
 
-            res.cookie("token", token, {
-                httpOnly: true,
-                secure: false, // true in production (https)
-                maxAge: 1000 * 60 * 60, // 1 hour
-            });
-
-        }
-
+        // Update verification request payload
         const updatePayload: Record<string, any> = {
             status,
             reviewedBy,
             reviewedAt: new Date(),
         };
-
-
 
         if (rejectionReason !== undefined) updatePayload.rejectionReason = rejectionReason;
         if (notes !== undefined) updatePayload.notes = notes;
@@ -334,6 +324,58 @@ export const reviewVerificationRequest = asyncWrapper(
                     statusText: statusText.FAIL,
                 })
             );
+        }
+
+        // Send token cookie if user identity was successfully verified
+        if (updatedUser?.isIdentityVerified) {
+            const token = jwt.sign(
+                {
+                    _id: updatedUser._id,
+                    email: updatedUser.email,
+                    role: updatedUser.role,
+                    isEmailVerified: updatedUser.isEmailVerified,
+                    isIdentityVerified: updatedUser.isIdentityVerified,
+                },
+                String(process.env.JWT_TOKEN_SECRET_KEY)
+            );
+
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 1000 * 60 * 60, // 1 hour
+            });
+        }
+
+        // ==========================================
+        // NOTIFICATION DISPATCH
+        // ==========================================
+        if (status === VerificationStatus.APPROVED || status === VerificationStatus.REJECTED) {
+            const isApproved = status === VerificationStatus.APPROVED;
+
+            const notificationType = isApproved
+                ? NotificationType.VERIFICATION_APPROVED
+                : NotificationType.VERIFICATION_REJECTED;
+
+            const notificationTitle = isApproved
+                ? "Identity Verification Approved"
+                : "Identity Verification Rejected";
+
+            const notificationMessage = isApproved
+                ? "Your identity verification request has been approved. You now have full access to verified features."
+                : `Your identity verification request was rejected. Reason: ${rejectionReason}`;
+
+            const notification = await Notification.create({
+                recipient: verification.user,
+                sender: reviewedBy,
+                type: notificationType,
+                title: notificationTitle,
+                message: notificationMessage,
+                entityType: NotificationEntityType.VERIFICATION,
+                entityId: updatedRequest._id,
+                link: "/settings/identity-verification",
+            });
+
+            getIO().emit(notificationType, notification)
         }
 
         res.status(StatusCodes.OK).json({

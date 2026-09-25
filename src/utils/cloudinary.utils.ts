@@ -1,5 +1,6 @@
-import { Readable } from "stream"
-import cloudinary from "../config/cloudinary.config"
+import { Readable } from "stream";
+import cloudinary from "../config/cloudinary.config";
+
 export interface ICloudinaryProbs {
     asset_id: string;
     public_id: string;
@@ -23,50 +24,63 @@ export interface ICloudinaryProbs {
     original_filename: string;
     api_key: string;
 }
-export const uploadImageToCloudinary = async (buffer: Buffer, folder: string, fileName: string) => {
-    return new Promise((resolve, reject) => {
 
+export const uploadImageToCloudinary = async (
+    buffer: Buffer,
+    folder: string,
+    fileName: string,
+    resourceType: "image" | "video" | "raw" | "auto" = "auto"
+): Promise<ICloudinaryProbs> => {
+    return new Promise((resolve, reject) => {
         const options = {
             public_id: fileName,
             folder,
-            overwrite: true
-        }
+            overwrite: true,
+            resource_type: resourceType, // Dynamically handle PDFs (raw) and Images
+        };
 
         const stream = cloudinary.uploader.upload_stream(options, (err, res) => {
-            if (err) reject(err);
-            else resolve(res)
-        })
-
-        Readable.from(buffer).pipe(stream);
-    })
-}
-
-export const replaceImageFromCloudinary = async (buffer: Buffer, public_id: string) => {
-    return new Promise((resolve, reject) => {
-        if (!public_id) throw Error('you must provide public_id to complete the process')
-        const options = {
-            public_id,
-            overwrite: true
-        }
-        const stream = cloudinary.uploader.upload_stream(options, (err, res) => {
-            if (err) reject(err);
-            else resolve(res)
-        })
-
-        Readable.from(buffer).pipe(stream)
-    })
-}
-
-export const destroyImageFromCloudinary = async (public_id: string) => {
-    return new Promise((resolve, reject) => {
-        if (!public_id) throw Error('you must provide public_id to complete the process')
-
-        const result = cloudinary.uploader.destroy(public_id, (err, res) => {
-            if (err) reject(err);
-            else {
-                resolve(res)
-            }
+            if (err) return reject(err);
+            resolve(res as unknown as ICloudinaryProbs);
         });
 
-    })
-}
+        Readable.from(buffer).pipe(stream);
+    });
+};
+
+export const replaceImageFromCloudinary = async (
+    buffer: Buffer,
+    public_id: string,
+    resourceType: "image" | "video" | "raw" | "auto" = "image"
+): Promise<ICloudinaryProbs> => {
+    return new Promise((resolve, reject) => {
+        if (!public_id) throw new Error("You must provide public_id to complete the process");
+
+        const options = {
+            public_id,
+            overwrite: true,
+            resource_type: resourceType,
+        };
+
+        const stream = cloudinary.uploader.upload_stream(options, (err, res) => {
+            if (err) return reject(err);
+            resolve(res as unknown as ICloudinaryProbs);
+        });
+
+        Readable.from(buffer).pipe(stream);
+    });
+};
+
+export const destroyImageFromCloudinary = async (
+    public_id: string,
+    resourceType: "image" | "video" | "raw" | "auto" = "image"
+) => {
+    return new Promise((resolve, reject) => {
+        if (!public_id) throw new Error("You must provide public_id to complete the process");
+
+        cloudinary.uploader.destroy(public_id, { resource_type: resourceType }, (err, res) => {
+            if (err) return reject(err);
+            resolve(res);
+        });
+    });
+};
