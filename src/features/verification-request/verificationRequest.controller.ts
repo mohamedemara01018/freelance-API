@@ -375,7 +375,7 @@ export const reviewVerificationRequest = asyncWrapper(
                 link: "/settings/identity-verification",
             });
 
-            getIO().emit(notificationType, notification)
+            getIO().to(`user:${currentUser?._id}`).emit(notificationType, notification)
         }
 
         res.status(StatusCodes.OK).json({

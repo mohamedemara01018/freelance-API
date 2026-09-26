@@ -136,7 +136,7 @@ export const createProposal = asyncWrapper(
             );
         }
 
-        // 3. Check duplicate submission (Handled by unique index, but good for explicit error message)
+        // 3. Check duplicate submission
         const existingProposal = await Proposal.findOne({ job, freelancer });
         if (existingProposal) {
             return next(
@@ -174,7 +174,73 @@ export const createProposal = asyncWrapper(
 );
 
 // ==========================================
-// 4. UPDATE PROPOSAL STATUS (Accept, Reject, Shortlist)
+// 4. UPDATE PROPOSAL DETAILS (Content, Bid, Duration)
+// ==========================================
+export const updateProposal = asyncWrapper(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { id } = req.params;
+        const { coverLetter, bidAmount, estimatedDuration } = req.body;
+
+        const proposal = await Proposal.findById(id);
+
+        if (!proposal) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.NOT_FOUND,
+                    message: "Proposal not found",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        // Allow updates only if the proposal is still PENDING or SHORTLISTED
+        if (
+            proposal.status !== ProposalStatus.PENDING &&
+            proposal.status !== ProposalStatus.SHORTLISTED
+        ) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "Cannot update a proposal that has already been accepted, rejected, or withdrawn",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        const updateFields: Record<string, any> = {};
+
+        if (coverLetter !== undefined) updateFields.coverLetter = coverLetter;
+        if (bidAmount !== undefined) updateFields.bidAmount = bidAmount;
+        if (estimatedDuration !== undefined) updateFields.estimatedDuration = estimatedDuration;
+
+        if (Object.keys(updateFields).length === 0) {
+            return next(
+                appError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    message: "At least one field (coverLetter, bidAmount, estimatedDuration) is required to update",
+                    statusText: statusText.FAIL,
+                })
+            );
+        }
+
+        const updatedProposal = await Proposal.findByIdAndUpdate(
+            id,
+            { $set: updateFields },
+            { new: true, runValidators: true }
+        )
+            .populate("freelancer", "firstName lastName avatar email title")
+            .populate("job", "title budget status type client");
+
+        res.status(StatusCodes.OK).json({
+            status: statusText.SUCCESS,
+            message: "Proposal updated successfully",
+            data: { proposal: updatedProposal },
+        });
+    }
+);
+
+// ==========================================
+// 5. UPDATE PROPOSAL STATUS (Accept, Reject, Shortlist)
 // ==========================================
 export const updateProposalStatus = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -193,7 +259,6 @@ export const updateProposalStatus = asyncWrapper(
 
         const updateData: Record<string, any> = { status };
 
-        // Handle specific timestamp logic based on status transition
         if (status === ProposalStatus.ACCEPTED) updateData.acceptedAt = new Date();
         if (status === ProposalStatus.REJECTED) updateData.rejectedAt = new Date();
         if (status === ProposalStatus.WITHDRAWN) updateData.withdrawnAt = new Date();
@@ -223,7 +288,7 @@ export const updateProposalStatus = asyncWrapper(
 );
 
 // ==========================================
-// 5. WITHDRAW / DELETE PROPOSAL
+// 6. WITHDRAW / DELETE PROPOSAL
 // ==========================================
 export const deleteProposal = asyncWrapper(
     async (req: Request, res: Response, next: NextFunction) => {
